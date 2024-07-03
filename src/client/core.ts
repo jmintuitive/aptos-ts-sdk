@@ -8,7 +8,8 @@ import { AnyNumber, AptosRequest, Client, ClientRequest, ClientResponse, MimeTyp
 import { AptosApiType } from "../utils";
 
 /**
- * Meaningful errors map
+ * @category Error Handling
+ * A mapping of HTTP status codes to their corresponding error messages.
  */
 const errors: Record<number, string> = {
   400: "Bad Request",
@@ -22,8 +23,23 @@ const errors: Record<number, string> = {
 };
 
 /**
- * Given a url and method, sends the request with axios and
- * returns the response.
+ * Sends an HTTP request using the provided client and returns the response.
+ *
+ * @category Request Handling
+ * @template Req - The request type.
+ * @template Res - The response type.
+ * @param options - The request options.
+ * @param client - The client to use for sending the request.
+ * @returns A promise resolving to the client response.
+ *
+ * @example
+ * ```typescript
+ * const response = await request<MyRequestType, MyResponseType>({
+ *   url: 'https://api.aptos.dev/v1',
+ *   method: 'GET',
+ *   params: { param1: 'value1' },
+ * }, client);
+ * ```
  */
 export async function request<Req, Res>(options: ClientRequest<Req>, client: Client): Promise<ClientResponse<Res>> {
   const { url, method, body, contentType, params, overrides, originMethod } = options;
@@ -42,7 +58,7 @@ export async function request<Req, Res>(options: ClientRequest<Req>, client: Cli
   }
 
   /*
-   * make a call using the @aptos-labs/aptos-client package
+   * Make a call using the @aptos-labs/aptos-client package
    * {@link https://www.npmjs.com/package/@aptos-labs/aptos-client}
    */
   return client.provider<Req, Res>({
@@ -56,11 +72,24 @@ export async function request<Req, Res>(options: ClientRequest<Req>, client: Cli
 }
 
 /**
- * The main function to use when doing an API request.
+ * The main function to use when making an API request.
  *
- * @param options AptosRequest
- * @param aptosConfig The config information for the SDK client instance
- * @returns the response or AptosApiError
+ * @category API Request
+ * @template Req - The request type.
+ * @template Res - The response type.
+ * @param options - The request options.
+ * @param aptosConfig - The configuration information for the SDK client instance.
+ * @param apiType - The type of Aptos API being used.
+ * @returns A promise resolving to the API response or an AptosApiError.
+ *
+ * @example
+ * ```typescript
+ * const response = await aptosRequest<MyRequestType, MyResponseType>({
+ *   url: 'https://api.aptos.dev/v1',
+ *   path: 'endpoint',
+ *   method: 'GET',
+ * }, aptosConfig, AptosApiType.INDEXER);
+ * ```
  */
 export async function aptosRequest<Req extends {}, Res extends {}>(
   options: AptosRequest,
@@ -81,12 +110,12 @@ export async function aptosRequest<Req extends {}, Res extends {}>(
     url: fullUrl,
   };
 
-  // Handle case for `Unauthorized` error (i.e API_KEY error)
+  // Handle case for `Unauthorized` error (i.e., API_KEY error)
   if (result.status === 401) {
     throw new AptosApiError(options, result, `Error: ${result.data}`);
   }
 
-  // to support both fullnode and indexer responses,
+  // To support both fullnode and indexer responses,
   // check if it is an indexer query, and adjust response.data
   if (apiType === AptosApiType.INDEXER) {
     const indexerResponse = result.data as any;
@@ -115,7 +144,7 @@ export async function aptosRequest<Req extends {}, Res extends {}>(
   if (result && result.data && "message" in result.data && "error_code" in result.data) {
     errorMessage = JSON.stringify(result.data);
   } else if (result.status in errors) {
-    // If it's not an API type, it must come form infra, these are prehandled
+    // If it's not an API type, it must come from infra, these are pre-handled
     errorMessage = errors[result.status];
   } else {
     // Everything else is unhandled
@@ -123,6 +152,6 @@ export async function aptosRequest<Req extends {}, Res extends {}>(
   }
 
   // We have to explicitly check for all request types, because if the error is a non-indexer error, but
-  // comes from an indexer request (e.g. 404), we'll need to mention it appropriately
+  // comes from an indexer request (e.g., 404), we'll need to mention it appropriately
   throw new AptosApiError(options, result, `${apiType} error: ${errorMessage}`);
 }
